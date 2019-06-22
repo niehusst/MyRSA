@@ -43,27 +43,70 @@ int select_prime(BIGNUM *bn, int bits) {
   }
 }
 
+
+/**
+ * Compute least common multiple between n1 and n2. this may be sloww??
+ * Resulting value is saved in r.
+ *
+ * @param r - value of the lcm of n1 and n2
+ * @param n1 - BN struct to compute lcm of
+ * @param n2 - BN struct to compute lcm of
+ * @param ctx - helper temp space struct
+ * @return bool - err status, 1 on error, 0 on success
+ */
+int lcm(BIGNUM *r, const BIGNUM *n1, const BIGNUM *n2, BN_CTX *ctx) {
+  BIGNUM *mult, *gcd;
+  int ret = 0;
+  mult = BN_new();
+  gcd = BN_new();
+
+  // set helper values
+  if(!BN_mul(mult, n1, n2, ctx) || !BN_gcd(gcd, n1, n2, ctx)) {
+    fprintf(stderr, "Failed to compute LCM helper values\n");
+    ret = 1;
+  }
+  // compute lcm
+  if(!BN_div(r, NULL, mult, gcd, ctx)) {
+    fprintf(stderr, "Failed to compute LCM\n");
+    ret = 1;
+  }
+
+  BN_free(mult);
+  BN_free(gcd);
+
+  return ret;
+}
+
+
 /**
  * Compute the Euler totient function for some number n defined as the product
  * of p and q.
  *
  * @param p - a prime number (not checked for efficiency)
  * @param q - a prime number (not checked for efficiency)
- * @return - the totient of n where n=p*q
+ * @return bool - err status; 1 on error, else 0
  */
-void totient(BIGNUM *t, const BIGNUM *p, const BIGNUM *q, BN_CTX *ctx) {
+int totient(BIGNUM *t, const BIGNUM *p, const BIGNUM *q, BN_CTX *ctx) {
   BIGNUM *q2, *p2;
+  int ret = 0;
   q2 = BN_new();
   p2 = BN_new();
   // set p2 and q2
-  BN_sub(p2, p, BN_value_one());
-  BN_sub(q2, q, BN_value_one());
+  if(!BN_sub(p2, p, BN_value_one()) ||
+     !BN_sub(q2, q, BN_value_one())) {
+    fprintf(stderr, "Failed to compute p2 and q2 for totient\n");
+    ret = 1;
+  }
 
   // find Euler totient using lcm
-  lcm(t, p2, q2, ctx);
+  if(lcm(t, p2, q2, ctx)) {
+    ret = 1;
+  }
 
   BN_free(q2);
   BN_free(p2);
+
+  return ret;
 }
 
 /**
@@ -85,15 +128,25 @@ void mod_multi_inverse(BIGNUM *ret) {
 int get_e(BIGNUM *e, const BIGNUM *t) {
   BIGNUM *minimum = BN_new(); //2
   BIGNUM *maximum = BN_new(); //t-1
+  int ret = 0;
+  // set range limit values
   if(!BN_set_word(minimum, 2)) {
     fprintf(stderr, "Failed to set word, 2\n");
-    exit(2);
+    ret = 1;
   }
-  BN_sub(maximum, t, BN_value_one());
+  if(!BN_sub(maximum, t, BN_value_one())) {
+    fprintf(stderr, "Failed to compute t-1\n");
+  }
 
-  int ret = !BN_pseudo_rand_range(e, maximum); // only computes range 0-max
+  // compute the range
+  // only computes range 0-max
+  if(!BN_pseudo_rand_range(e, maximum)) {
+    fprintf(stderr, "Range computation failed\n");
+    ret = 1;
+  }
   // do lower bound check manually
-  if(BN_cmp(minimum, e) == -1) {
+  if(BN_cmp(e, minimum) == -1) {
+    fprintf(stderr, "e is less than min\n");
     ret = 1; //failure to fall in valid range
   }
 
@@ -104,21 +157,7 @@ int get_e(BIGNUM *e, const BIGNUM *t) {
   return ret;
 }
 
-/**
- * Compute least common multiple between n1 and n2. this may be sloww??
- * Resulting value is saved in ret.
- *
- *
- */
-void lcm(BIGNUM *ret, const BIGNUM *n1, const BIGNUM *n2, BN_CTX *ctx) {
-  BIGNUM *mult, *gcd;
-  mult = BN_new();
-  gcd = BN_new();
 
-  BN_free(mult);
-  BN_free(gcd);
-
-}
 
 //TODO: figure out how to pad a str message (aka turn it into a number) and back
 
@@ -147,7 +186,7 @@ int main(void) {
   BN_mul(n, p, q, ctx);
 
   // get the totient value for n=p*q
-  totient(t, p, q);
+  totient(t, p, q, ctx);
 
   // e and t must be relatively prime
   do {
@@ -162,11 +201,8 @@ int main(void) {
     BN_gcd(gcd_result, t, e, ctx);
   } while(!BN_is_one(gcd_result));
 
-  // use EE to find the multiplicative inverse of the totient
+  //TODO use Extended Euclidean to find the multiplicative inverse of the totient
   // assert (e*d) % t == 1
-
-  // use Extended Euclidean to find the multiplicative inverse
-  printf("made it and chose a number\n");
 
   // clean up
   BN_free(q);
