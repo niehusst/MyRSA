@@ -11,6 +11,8 @@
 #include <openssl/bn.h>
 //#include <openssl/bio.h>
 
+#define ERR 1
+
 
 // Print a BIGNUM struct
 void bn_print(BIGNUM *bn) {
@@ -36,7 +38,7 @@ int select_prime(BIGNUM *bn, int bits) {
   if(!BN_generate_prime_ex(bn, bits, safe_prime, NULL, NULL, NULL)) {
     //error
     fprintf(stderr, "Generating prime number encountered error.\n");
-    return 1;
+    return ERR;
   } else {
     //success
     return 0;
@@ -63,12 +65,12 @@ int lcm(BIGNUM *r, const BIGNUM *n1, const BIGNUM *n2, BN_CTX *ctx) {
   // set helper values
   if(!BN_mul(mult, n1, n2, ctx) || !BN_gcd(gcd, n1, n2, ctx)) {
     fprintf(stderr, "Failed to compute LCM helper values\n");
-    ret = 1;
+    ret = ERR;
   }
   // compute lcm
   if(!BN_div(r, NULL, mult, gcd, ctx)) {
     fprintf(stderr, "Failed to compute LCM\n");
-    ret = 1;
+    ret = ERR;
   }
 
   BN_free(mult);
@@ -95,12 +97,12 @@ int totient(BIGNUM *t, const BIGNUM *p, const BIGNUM *q, BN_CTX *ctx) {
   if(!BN_sub(p2, p, BN_value_one()) ||
      !BN_sub(q2, q, BN_value_one())) {
     fprintf(stderr, "Failed to compute p2 and q2 for totient\n");
-    ret = 1;
+    ret = ERR;
   }
 
   // find Euler totient using lcm
   if(lcm(t, p2, q2, ctx)) {
-    ret = 1;
+    ret = ERR;
   }
 
   BN_free(q2);
@@ -119,7 +121,7 @@ void mod_multi_inverse(BIGNUM *ret) {
 }
 
 /**
- * Set 'e' randomly between 2 -- t-1
+ * Set 'e' randomly between 2 -- t-ERR
  *
  * @param e - the struct to write to
  * @param t - totient. used as upper limit on range +1
@@ -132,22 +134,23 @@ int get_e(BIGNUM *e, const BIGNUM *t) {
   // set range limit values
   if(!BN_set_word(minimum, 2)) {
     fprintf(stderr, "Failed to set word, 2\n");
-    ret = 1;
+    ret = ERR;
   }
   if(!BN_sub(maximum, t, BN_value_one())) {
-    fprintf(stderr, "Failed to compute t-1\n");
+    fprintf(stderr, "Failed to compute t-ERR\n");
+    ret = ERR;
   }
 
   // compute the range
   // only computes range 0-max
   if(!BN_pseudo_rand_range(e, maximum)) {
     fprintf(stderr, "Range computation failed\n");
-    ret = 1;
+    ret = ERR;
   }
   // do lower bound check manually
   if(BN_cmp(e, minimum) == -1) {
     fprintf(stderr, "e is less than min\n");
-    ret = 1; //failure to fall in valid range
+    ret = ERR; //failure to fall in valid range
   }
 
   // clean up
@@ -157,24 +160,28 @@ int get_e(BIGNUM *e, const BIGNUM *t) {
   return ret;
 }
 
-
-
-//TODO: figure out how to pad a str message (aka turn it into a number) and back
-
-int main(void) {
+/**
+ * Generate an RSA public key and private key pair. Keep the private key to
+ * yourself ;)
+ *
+ */
+int RSA_keys_generate(/*public, private */) {
+  int status = 0;
   srand(time(0));
   BN_CTX *ctx = BN_CTX_new(); // for internal BN usage
 
   // allocate BIGNUM structs
   BIGNUM *p = BN_new();
-  BIGNUM *q = BN_new();
+  BIGNUM *q = BN_new(); //TODO: according to RSA, shouldnt a different person generate this?? or am i thinking of something eles?
 
   // num bits in the primes to generate
   int num_bits = 256;
 
   // init as primes
-  select_prime(p, num_bits);
-  select_prime(q, num_bits);
+  if(select_prime(p, num_bits) || select_prime(q, num_bits)) {
+    fprintf(stderr, "Failed to select prime numbers\n");
+    status = ERR;
+  }
 
   BIGNUM *t, *e, *gcd_result, *n;
   n = BN_new();
@@ -186,7 +193,10 @@ int main(void) {
   BN_mul(n, p, q, ctx);
 
   // get the totient value for n=p*q
-  totient(t, p, q, ctx);
+  if(totient(t, p, q, ctx)) {
+    fprintf(stderr, "Euler Totient calculation failed\n");
+    status = ERR;
+  }
 
   // e and t must be relatively prime
   do {
@@ -194,7 +204,7 @@ int main(void) {
     if(get_e(e, t)) {
       //error
       fprintf(stderr, "Failed to get valid value for 'e'\n");
-      exit(2);
+      status = ERR;
     }
 
     // check for relative primality
@@ -211,6 +221,21 @@ int main(void) {
   BN_free(e);
   BN_free(gcd_result);
   BN_CTX_free(ctx);
+
+  return status;
+}
+
+
+//TODO: figure out how to pad a str message (aka turn it into a number) and back
+//TODO: make a basic TCP echo server to experiment with this
+
+int main(void) {
+  //TODO: what type should pub/priv key be? BN? custom key struct?
+
+  if(RSA_keys_generate()) {
+    printf("%s\n", "RSA died");
+    exit(2);
+  }
 
   return 0;
 }
