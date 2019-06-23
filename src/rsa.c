@@ -1,15 +1,13 @@
 /**
- * Uses openSSL under Apache licesnse
- *
- * Compile with:
- * clang -lm -lssl -lcrypto -o rsa rsa.c
+ * Uses openSSL under Apache license
+ * See custom structs under corresponding header file
  */
 #include <stdio.h>
-#include <math.h>
 #include <stdlib.h>
 #include <time.h>
 #include <openssl/bn.h>
-//#include <openssl/bio.h>
+
+#include "rsa.h"
 
 #define ERR 1
 
@@ -33,8 +31,8 @@ void bn_print(BIGNUM *bn) {
  * @return bool - err status of function. 1 on failure, 0 on success
  */
 int select_prime(BIGNUM *bn, int bits) {
-
   int safe_prime = 1;
+
   if(!BN_generate_prime_ex(bn, bits, safe_prime, NULL, NULL, NULL)) {
     //error
     fprintf(stderr, "Generating prime number encountered error.\n");
@@ -54,29 +52,29 @@ int select_prime(BIGNUM *bn, int bits) {
  * @param n1 - BN struct to compute lcm of
  * @param n2 - BN struct to compute lcm of
  * @param ctx - helper temp space struct
- * @return bool - err status, 1 on error, 0 on success
+ * @return status - err status, 1 on error, 0 on success
  */
 int lcm(BIGNUM *r, const BIGNUM *n1, const BIGNUM *n2, BN_CTX *ctx) {
   BIGNUM *mult, *gcd;
-  int ret = 0;
+  int status = 0;
   mult = BN_new();
   gcd = BN_new();
 
   // set helper values
   if(!BN_mul(mult, n1, n2, ctx) || !BN_gcd(gcd, n1, n2, ctx)) {
     fprintf(stderr, "Failed to compute LCM helper values\n");
-    ret = ERR;
+    status = ERR;
   }
   // compute lcm
   if(!BN_div(r, NULL, mult, gcd, ctx)) {
     fprintf(stderr, "Failed to compute LCM\n");
-    ret = ERR;
+    status = ERR;
   }
 
   BN_free(mult);
   BN_free(gcd);
 
-  return ret;
+  return status;
 }
 
 
@@ -86,84 +84,146 @@ int lcm(BIGNUM *r, const BIGNUM *n1, const BIGNUM *n2, BN_CTX *ctx) {
  *
  * @param p - a prime number (not checked for efficiency)
  * @param q - a prime number (not checked for efficiency)
- * @return bool - err status; 1 on error, else 0
+ * @return status - err status; 1 on error, else 0
  */
 int totient(BIGNUM *t, const BIGNUM *p, const BIGNUM *q, BN_CTX *ctx) {
   BIGNUM *q2, *p2;
-  int ret = 0;
+  int status = 0;
   q2 = BN_new();
   p2 = BN_new();
   // set p2 and q2
   if(!BN_sub(p2, p, BN_value_one()) ||
      !BN_sub(q2, q, BN_value_one())) {
     fprintf(stderr, "Failed to compute p2 and q2 for totient\n");
-    ret = ERR;
+    status = ERR;
   }
 
   // find Euler totient using lcm
   if(lcm(t, p2, q2, ctx)) {
-    ret = ERR;
+    status = ERR;
   }
 
   BN_free(q2);
   BN_free(p2);
 
-  return ret;
+  return status;
 }
 
 /**
  * Extended Euclidean algorithm.
- * For getting the multiplicative inverse
+ * Used for finding the multiplicative inverse of e (mod t)
+ *
+ * @param ret - the BN to store the result in
+ * @param e - part of the value to find the mult inverse of. Coprime to t
+ * @param t - part of the value to find teh mult inverse of. Coprime to e
+ * @param ctx - struct used as helper storage in big computations
+ * @return status - error status of the function: 1 on failure, 0 on success
  */
-void mod_multi_inverse(BIGNUM *ret) {
-  //TODO:!!!
+int mod_multi_inverse(BIGNUM *ret, const BIGNUM *e, const BIGNUM *t, BN_CTX *ctx) {
+  int status = 0;
+  // thanks Wikipedia
+  // https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
 
+  // compute numbers in the sequence. We only need 2 values at a time to
+  // compute the next number in the sequence, so we only allocate that much
+  // space for efficiency
+  BIGNUM *inverse, *next_inverse, *gcd, *next_gcd, *quotient, *temp, *temp2;
+  inverse = BN_new();
+  BN_one(inverse);
+  next_inverse = BN_new();
+  BN_zero(next_inverse);
+  gcd = BN_dup(e);
+  next_gcd = BN_dup(t);
+  quotient = BN_new();
+  temp = BN_new();
+  temp2 = BN_new();
+
+  // compute the sequence up to inverse
+  while(!BN_is_zero(next_gcd)) {
+    if(!BN_div(quotient, NULL, gcd, next_gcd,ctx)) {
+      fprintf(stderr, "Quotient computation in finding inverse failed\n");
+      status = ERR;
+    }
+
+    // continue sequence
+    temp = BN_dup(next_gcd);
+    if(!BN_mul(temp2, quotient, temp, ctx) || !BN_sub(next_gcd, gcd, temp2)) {
+      fprintf(stderr, "Failed to get next value in gcd sequence\n");
+      status = ERR;
+    }
+    gcd = BN_dup(temp);
+
+    temp = BN_dup(next_inverse);
+    if(!BN_mul(temp2, quotient, temp, ctx) || !BN_sub(next_inverse, inverse, temp2)) {
+      fprintf(stderr, "Failed to get next value in inverse sequence\n");
+      status = ERR;
+    }
+    inverse = BN_dup(temp);
+  }
+
+  // save final computed inverse value as result
+  if(BN_copy(ret, inverse) == NULL) {
+    fprintf(stderr, "%s\n", "Failed to copy inverse into result");
+    status = ERR;
+  }
+
+  BN_free(inverse);
+  BN_free(next_inverse);
+  BN_free(gcd);
+  BN_free(next_gcd);
+  BN_free(quotient);
+  BN_free(temp);
+
+  return status;
 }
 
 /**
- * Set 'e' randomly between 2 -- t-ERR
+ * Find value 'e' randomly between 2 -- t-1
  *
  * @param e - the struct to write to
  * @param t - totient. used as upper limit on range +1
- * @return bool - err status; 1 on error, 0 on success
+ * @return status - err status; 1 on error, 0 on success
  */
 int get_e(BIGNUM *e, const BIGNUM *t) {
   BIGNUM *minimum = BN_new(); //2
   BIGNUM *maximum = BN_new(); //t-1
-  int ret = 0;
+  int status = 0;
   // set range limit values
   if(!BN_set_word(minimum, 2)) {
     fprintf(stderr, "Failed to set word, 2\n");
-    ret = ERR;
+    status = ERR;
   }
   if(!BN_sub(maximum, t, BN_value_one())) {
     fprintf(stderr, "Failed to compute t-ERR\n");
-    ret = ERR;
+    status = ERR;
   }
 
   // compute the range
   // only computes range 0-max
   if(!BN_pseudo_rand_range(e, maximum)) {
     fprintf(stderr, "Range computation failed\n");
-    ret = ERR;
+    status = ERR;
   }
   // do lower bound check manually
   if(BN_cmp(e, minimum) == -1) {
     fprintf(stderr, "e is less than min\n");
-    ret = ERR; //failure to fall in valid range
+    status = ERR; //failure to fall in valid range
   }
 
   // clean up
   BN_free(maximum);
   BN_free(minimum);
 
-  return ret;
+  return status;
 }
 
 /**
  * Generate an RSA public key and private key pair. Keep the private key to
  * yourself ;)
  *
+ * @param pub_key - the struct to store the resulting public key in
+ * @param priv_key - the struct to store the resulting private key in
+ * @return status - boolean error status, 1 on failure, 0 on success
  */
 int RSA_keys_generate(/*public, private */) {
   int status = 0;
@@ -172,7 +232,7 @@ int RSA_keys_generate(/*public, private */) {
 
   // allocate BIGNUM structs
   BIGNUM *p = BN_new();
-  BIGNUM *q = BN_new(); //TODO: according to RSA, shouldnt a different person generate this?? or am i thinking of something eles?
+  BIGNUM *q = BN_new();
 
   // num bits in the primes to generate
   int num_bits = 256;
@@ -183,11 +243,12 @@ int RSA_keys_generate(/*public, private */) {
     status = ERR;
   }
 
-  BIGNUM *t, *e, *gcd_result, *n;
+  BIGNUM *t, *e, *gcd_result, *n, *inverse;
   n = BN_new();
   t = BN_new();
   e = BN_new();
   gcd_result = BN_new();
+  inverse = BN_new();
 
   // set n
   BN_mul(n, p, q, ctx);
@@ -206,13 +267,42 @@ int RSA_keys_generate(/*public, private */) {
       fprintf(stderr, "Failed to get valid value for 'e'\n");
       status = ERR;
     }
-
     // check for relative primality
     BN_gcd(gcd_result, t, e, ctx);
   } while(!BN_is_one(gcd_result));
 
-  //TODO use Extended Euclidean to find the multiplicative inverse of the totient
-  // assert (e*d) % t == 1
+  // use Extended Euclidean to find the multiplicative inverse of the totient
+  if(mod_multi_inverse(inverse, e, t, ctx)) {
+    fprintf(stderr, "Finding multiplicative inverse failed\n");
+    status = ERR;
+  }
+
+  //DEBUG assert (e*d) % t == 1
+  BIGNUM *test = BN_new();
+  BN_mod_mul(test, e, inverse, t, ctx);
+  if(!BN_is_one(test)) {
+    fprintf(stderr, "Mathematical tautology not upheld: Math broke\n");
+    bn_print(test);
+  }
+  BN_free(test);
+
+  //***********test*************
+  BIGNUM * text = BN_new();
+  BIGNUM * encrypt = BN_new();
+  BIGNUM * decrypt = BN_new();
+  BN_set_word(text, 69);
+  printf("plaintext: ");
+  bn_print(text);
+
+  // public key is n, e pair
+  BN_mod_exp(encrypt, text, e, n, ctx);
+  printf("encrypted: ");
+  bn_print(encrypt);
+  // private key is n, d pair
+  BN_mod_exp(decrypt, encrypt, inverse, n, ctx);
+  printf("decrypted: ");
+  bn_print(decrypt);
+  //*********test end***********
 
   // clean up
   BN_free(q);
@@ -227,7 +317,6 @@ int RSA_keys_generate(/*public, private */) {
 
 
 //TODO: figure out how to pad a str message (aka turn it into a number) and back
-//TODO: make a basic TCP echo server to experiment with this
 
 int main(void) {
   //TODO: what type should pub/priv key be? BN? custom key struct?
@@ -237,6 +326,7 @@ int main(void) {
     exit(2);
   }
 
+  printf("main exiting successfully\n");
   return 0;
 }
 
@@ -273,5 +363,5 @@ int BN_is_odd(BIGNUM *a);
 int BN_zero(BIGNUM *a);
 int BN_one(BIGNUM *a);
 
-BIGNUM* BN_value_one(void);
+const BIGNUM* BN_value_one(void);
 */
