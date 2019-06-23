@@ -225,7 +225,7 @@ int get_e(BIGNUM *e, const BIGNUM *t) {
  * @param priv_key - the struct to store the resulting private key in
  * @return status - boolean error status, 1 on failure, 0 on success
  */
-int RSA_keys_generate(/*public, private */) {
+int RSA_keys_generate(key_t *pub_key, key_t *priv_key) {
   int status = 0;
   srand(time(0));
   BN_CTX *ctx = BN_CTX_new(); // for internal BN usage
@@ -286,23 +286,16 @@ int RSA_keys_generate(/*public, private */) {
   }
   BN_free(test);
 
-  //***********test*************
-  BIGNUM * text = BN_new();
-  BIGNUM * encrypt = BN_new();
-  BIGNUM * decrypt = BN_new();
-  BN_set_word(text, 69);
-  printf("plaintext: ");
-  bn_print(text);
-
-  // public key is n, e pair
-  BN_mod_exp(encrypt, text, e, n, ctx);
-  printf("encrypted: ");
-  bn_print(encrypt);
-  // private key is n, d pair
-  BN_mod_exp(decrypt, encrypt, inverse, n, ctx);
-  printf("decrypted: ");
-  bn_print(decrypt);
-  //*********test end***********
+  // init and save public key values
+  pub_key->mod = BN_new();
+  pub_key->power = BN_new();
+  BN_copy(pub_key->mod, n);
+  BN_copy(pub_key->power, e);
+  // init and save private key values
+  priv_key->mod = BN_new();
+  priv_key->power = BN_new();
+  BN_copy(priv_key->mod, n);
+  BN_copy(priv_key->power, inverse);
 
   // clean up
   BN_free(q);
@@ -314,54 +307,3 @@ int RSA_keys_generate(/*public, private */) {
 
   return status;
 }
-
-
-//TODO: figure out how to pad a str message (aka turn it into a number) and back
-
-int main(void) {
-  //TODO: what type should pub/priv key be? BN? custom key struct?
-
-  if(RSA_keys_generate()) {
-    printf("%s\n", "RSA died");
-    exit(2);
-  }
-
-  printf("main exiting successfully\n");
-  return 0;
-}
-
-
-/* Useful BN functions
-
-int BN_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
-int BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
-int BN_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
-int BN_sqr(BIGNUM *r, BIGNUM *a, BN_CTX *ctx);
-int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *a, const BIGNUM *d,
-        BN_CTX *ctx);
-int BN_mod(BIGNUM *rem, const BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
-int BN_nnmod(BIGNUM *rem, const BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
-int BN_mod_add(BIGNUM *ret, BIGNUM *a, BIGNUM *b, const BIGNUM *m,
-        BN_CTX *ctx);
-int BN_mod_sub(BIGNUM *ret, BIGNUM *a, BIGNUM *b, const BIGNUM *m,
-        BN_CTX *ctx);
-int BN_mod_mul(BIGNUM *ret, BIGNUM *a, BIGNUM *b, const BIGNUM *m,
-        BN_CTX *ctx);
-int BN_mod_sqr(BIGNUM *ret, BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
-int BN_exp(BIGNUM *r, BIGNUM *a, BIGNUM *p, BN_CTX *ctx);
-int BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-        const BIGNUM *m, BN_CTX *ctx);
-int BN_gcd(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
-
-int BN_cmp(BIGNUM *a, BIGNUM *b);
-int BN_ucmp(BIGNUM *a, BIGNUM *b);
-int BN_is_zero(BIGNUM *a);
-int BN_is_one(BIGNUM *a);
-int BN_is_word(BIGNUM *a, BN_ULONG w);
-int BN_is_odd(BIGNUM *a);
-
-int BN_zero(BIGNUM *a);
-int BN_one(BIGNUM *a);
-
-const BIGNUM* BN_value_one(void);
-*/

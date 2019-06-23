@@ -5,7 +5,7 @@ fun solving the key exchange problem.
 ### Dependencies and Getting started
 This repository requires openSSL to be installed, and linked in such a
 way that the compiler can find it (see this articles on [medium](https://medium.com/@timmykko/using-openssl-library-with-macos-sierra-7807cfd47892)).
-I use the clang compiler, so make sure clang is installed as well.
+I use the clang compiler in my Makefile, so make sure clang is installed as well.
 
 TODO: add instructions for use
 
