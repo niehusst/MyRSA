@@ -11,6 +11,9 @@
 
 #define FAIL 2
 
+//TODO fix to make do more than 1 communication round
+//TODO add encryption to messaging
+
 /*
   A simple TCP/IP echo server
   (to test; run the server executable and then in a separate window,
