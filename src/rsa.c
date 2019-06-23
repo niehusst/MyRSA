@@ -12,16 +12,6 @@
 #define ERR 1
 
 
-// Print a BIGNUM struct
-void bn_print(BIGNUM *bn) {
-  char* debug;
-  debug = BN_bn2dec(bn);
-  printf("%s\n", debug);
-
-  OPENSSL_free(debug);
-}
-
-
 /**
  * Generate a prime number. (Ideally large)
  * Save results into parameter bn.
@@ -282,7 +272,7 @@ int RSA_keys_generate(key_t *pub_key, key_t *priv_key) {
   BN_mod_mul(test, e, inverse, t, ctx);
   if(!BN_is_one(test)) {
     fprintf(stderr, "Mathematical tautology not upheld: Math broke\n");
-    bn_print(test);
+    status = ERR;
   }
   BN_free(test);
 
