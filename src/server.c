@@ -6,6 +6,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "pad.h"
+#include "rsa.h"
+
 #define FAIL 2
 
 /*
@@ -23,7 +26,7 @@ int main(int argc, char** argv) {
   }
 
   //init internet socket address
-  struct sockaddr_in addr = { 
+  struct sockaddr_in addr = {
     .sin_addr.s_addr = INADDR_ANY,
     .sin_family = AF_INET,
     .sin_port = htons(4444) //arbitrary 'unique' port number to listen at

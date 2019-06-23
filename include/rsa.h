@@ -9,7 +9,7 @@
 typedef struct key_pair {
   BIGNUM *mod;
   BIGNUM *power;
-} key_t;
+} key_pair_t;
 
 /**
  * Generate an RSA public key and private key pair. Keep the private key to
@@ -19,6 +19,6 @@ typedef struct key_pair {
  * @param priv_key - the struct to store the resulting private key in
  * @return status - boolean error status, 1 on failure, 0 on success
  */
-int RSA_keys_generate(key_t *pub_key, key_t *priv_key);
+int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key);
 
 #endif

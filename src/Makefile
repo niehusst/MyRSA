@@ -13,7 +13,7 @@ DEPS = $(patsubst %,$(IDIR)%,$(_DEPS))
 # all object files that need linking together to run a demo
 OBJ=rsa.o pad.o
 
-all: rsa pad demo
+all: rsa pad server client
 
 # compile rsa object
 rsa: rsa.c $(DEPS)
@@ -23,14 +23,14 @@ rsa: rsa.c $(DEPS)
 pad: pad.c $(DEPS)
 		$(CC) -c $^ $(CFLAGS)
 
-# TODO compile echo server object
-server:
-		$(CC) -c $^ $(CFLAGS)
+# link and compile echo server executable
+server: server.c $(OBJ)
+		$(CC) $(LIBS) -o $@ $^ $(CFLAGS)
 
-# link object files together
-demo: $(OBJ)
+# link and compile echo client executable
+client: client.c $(OBJ)
 		$(CC) $(LIBS) -o $@ $^ $(CFLAGS)
 
 clean:
 		rm -f *~ *.o $(IDIR)*~ $(IDIR)*.gch
-		rm -f demo
+		rm -f client server

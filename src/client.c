@@ -7,9 +7,12 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+#include "pad.h"
+#include "rsa.h"
+
 #define FAIL 2
 
-/* 
+/*
   A simple client program to connect to a TCP/IC host server
   - takes a host name in command line args
  */
@@ -18,7 +21,7 @@ int main(int argc, char** argv) {
     printf("Usage: ./%s <HOST_NAME>\n", argv[0]);
     exit(0);
   }
-  
+
   //get host name from command line and convert to IP addr
   struct hostent* server = gethostbyname(argv[1]);
   if(server == NULL) {
@@ -43,7 +46,7 @@ int main(int argc, char** argv) {
   //fill host address into server variable
   //copy bytes from server to addr
   bcopy((char*)server->h_addr, (char*)&addr.sin_addr.s_addr, server->h_length);
-  
+
   //connect to the server
   if(connect(s, (struct sockaddr*)&addr, sizeof(struct sockaddr_in))) {
     perror("connect failed: ");
@@ -66,7 +69,7 @@ int main(int argc, char** argv) {
     perror("read failed: ");
     exit(FAIL);
   }
-  
+
   printf("Server sent message: %s\n", buffer);
 
   //clean up open sockets

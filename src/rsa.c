@@ -215,7 +215,7 @@ int get_e(BIGNUM *e, const BIGNUM *t) {
  * @param priv_key - the struct to store the resulting private key in
  * @return status - boolean error status, 1 on failure, 0 on success
  */
-int RSA_keys_generate(key_t *pub_key, key_t *priv_key) {
+int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
   int status = 0;
   srand(time(0));
   BN_CTX *ctx = BN_CTX_new(); // for internal BN usage
