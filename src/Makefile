@@ -4,7 +4,7 @@ IDIR=../include/
 # compile info
 CC=clang
 CFLAGS=-Wall -I$(IDIR)
-LIBS=-lm -lcrypto -lssl
+LIBS=-lcrypto -lssl
 
 # prepend IDIR to header depency names
 _DEPS = rsa.h
@@ -13,7 +13,7 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 # all object files that need linking together to run a demo
 OBJ=rsa.o
 
-all: rsa test
+all: rsa demo
 
 # compile rsa object
 rsa: rsa.c $(DEPS)
