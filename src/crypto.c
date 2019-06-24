@@ -18,9 +18,23 @@
  * @param pub_key - the key to use to encrypt msg
  * @return status - function error status, 1 on failure, 0 on success
  */
-int encrypt(BIGNUM* cipher_text, const char* msg, const key_pair_t* pub_key) {
+int encrypt_str(BIGNUM* cipher_text, const char* msg, const key_pair_t* pub_key) {
   int status = 0;
+  BN_CTX *ctx = BN_CTX_new();
 
+  // pad msg
+  if(text_to_num(cipher_text, msg)) {
+    fprintf(stderr, "%s\n", "Message padding failed");
+    status = 1;
+  }
+
+  // encrypt
+  if(!BN_mod_exp(cipher_text, cipher_text, pub_key->power, pub_key->mod, ctx)) {
+    fprintf(stderr, "%s\n", "Message encryption failed");
+    status = 1;
+  }
+
+  BN_CTX_free(ctx);
   return status;
 }
 
@@ -32,8 +46,23 @@ int encrypt(BIGNUM* cipher_text, const char* msg, const key_pair_t* pub_key) {
  * @param priv_key - the key to use to dencrypt cipher_text
  * @return status - function error status, 1 on failure, 0 on success
  */
-int decrypt(char** msg, const BIGNUM* cipher_text, const key_pair_t* priv_key) {
+int decrypt_str(char** msg, const BIGNUM* cipher_text, const key_pair_t* priv_key) {
   int status = 0;
+  BN_CTX *ctx = BN_CTX_new();
+  BIGNUM *ct = BN_dup(cipher_text);
 
+  // decrypt
+  if(!BN_mod_exp(ct, cipher_text, priv_key->power, priv_key->mod, ctx)) {
+    fprintf(stderr, "%s\n", "Message decryption failed");
+    status = 1;
+  }
+
+  // unpad msg
+  if(num_to_text(msg, ct)) {
+    fprintf(stderr, "%s\n", "Message unpadding failed");
+    status = 1;
+  }
+
+  BN_CTX_free(ctx);
   return status;
 }

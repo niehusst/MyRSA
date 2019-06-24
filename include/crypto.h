@@ -11,7 +11,7 @@
  * @param pub_key - the key to use to encrypt msg
  * @return status - function error status, 1 on failure, 0 on success
  */
-int encrypt(BIGNUM* cipher_text, const char* msg, const key_pair_t* pub_key);
+int encrypt_str(BIGNUM* cipher_text, const char* msg, const key_pair_t* pub_key);
 
 /**
  * Dencrypt the data in cipher_text using priv_key as the encryption key.
@@ -21,7 +21,6 @@ int encrypt(BIGNUM* cipher_text, const char* msg, const key_pair_t* pub_key);
  * @param priv_key - the key to use to dencrypt cipher_text
  * @return status - function error status, 1 on failure, 0 on success
  */
-int decrypt(char** msg, const BIGNUM* cipher_text, const key_pair_t* priv_key);
-
+int decrypt_str(char** msg, const BIGNUM* cipher_text, const key_pair_t* priv_key);
 
 #endif

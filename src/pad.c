@@ -8,15 +8,7 @@
  #include <openssl/bn.h>
 
  #include "pad.h"
-
-// Print a BIGNUM struct
-void bn_print(BIGNUM *bn) {
-  char* debug;
-  debug = BN_bn2dec(bn);
-  printf("%s\n", debug);
-
-  OPENSSL_free(debug);
-}
+ 
 
 /**
  * Following the idea in the header, convert plaintext to an integer using an
