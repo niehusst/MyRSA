@@ -9,6 +9,7 @@
 
 #include "pad.h"
 #include "rsa.h"
+#include "crypto.h"
 
 #define FAIL 2
 

@@ -7,11 +7,11 @@ CFLAGS=-Wall -I$(IDIR)
 LIBS=-lcrypto -lssl
 
 # prepend IDIR to header depency names
-_DEPS = rsa.h pad.h
+_DEPS = rsa.h pad.h crypto.h
 DEPS = $(patsubst %,$(IDIR)%,$(_DEPS))
 
 # all object files that need linking together to run a demo
-OBJ=rsa.o pad.o
+OBJ=rsa.o pad.o crypto.o
 
 all: rsa pad server client
 
@@ -21,6 +21,9 @@ rsa: rsa.c $(DEPS)
 
 # compile text padding object
 pad: pad.c $(DEPS)
+		$(CC) -c $^ $(CFLAGS)
+
+crypto: crypto.c $(DEPS)
 		$(CC) -c $^ $(CFLAGS)
 
 # link and compile echo server executable
