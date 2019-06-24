@@ -9,11 +9,13 @@
 
 #include "rsa.h"
 
+// RSA authors suggest 1024 for corporate use or 2048 for super secure stuff
+#define KEY_LEN 256
 #define ERR 1
 
 
 /**
- * Generate a prime number. (Ideally large)
+ * Generate a prime number. (Ideally large for encryption security reasons)
  * Save results into parameter bn.
  *
  * @param bn - pointer to the struct to save the resulting pseudo prime number
@@ -178,6 +180,7 @@ int get_e(BIGNUM *e, const BIGNUM *t) {
   BIGNUM *minimum = BN_new(); //2
   BIGNUM *maximum = BN_new(); //t-1
   int status = 0;
+
   // set range limit values
   if(!BN_set_word(minimum, 2)) {
     fprintf(stderr, "Failed to set word, 2\n");
@@ -225,7 +228,7 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
   BIGNUM *q = BN_new();
 
   // num bits in the primes to generate
-  int num_bits = 256;
+  int num_bits = KEY_LEN;
 
   // init as primes
   if(select_prime(p, num_bits) || select_prime(q, num_bits)) {
@@ -241,7 +244,10 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
   inverse = BN_new();
 
   // set n
-  BN_mul(n, p, q, ctx);
+  if(!BN_mul(n, p, q, ctx)) {
+    fprintf(stderr, "Getting n value failed\n");
+    status = ERR;
+  }
 
   // get the totient value for n=p*q
   if(totient(t, p, q, ctx)) {
@@ -258,7 +264,10 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
       status = ERR;
     }
     // check for relative primality
-    BN_gcd(gcd_result, t, e, ctx);
+    if(!BN_gcd(gcd_result, t, e, ctx)) {
+      fprintf(stderr, "GCD calculation failed\n");
+      status = ERR;
+    }
   } while(!BN_is_one(gcd_result));
 
   // use Extended Euclidean to find the multiplicative inverse of the totient
@@ -266,15 +275,6 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
     fprintf(stderr, "Finding multiplicative inverse failed\n");
     status = ERR;
   }
-
-  //DEBUG assert (e*d) % t == 1
-  BIGNUM *test = BN_new();
-  BN_mod_mul(test, e, inverse, t, ctx);
-  if(!BN_is_one(test)) {
-    fprintf(stderr, "Mathematical tautology not upheld: Math broke\n");
-    status = ERR;
-  }
-  BN_free(test);
 
   // init and save public key values
   pub_key->mod = BN_new();
@@ -296,4 +296,49 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
   BN_CTX_free(ctx);
 
   return status;
+}
+
+/**
+ * Generate a public/private key pair that works.
+ *
+ * Awkward that I need this function...
+ * RSA_keys_generate has about 50% chance of generating bad keys that
+ * can't actually be used to perform decryption of a message they encrypted.
+ * Since it's not a 100% chance, the reason for failure is likely located in
+ * code that uses random number generation (either select_prime or get_e from rsa.c)
+ * Since I have to assume openSSL didn't mess up prime number generation at that
+ * rate, it must be in get_e. However, e isn't solidified until it satisfies
+ * coprimality to t (which is its only job). So not sure where it's going wrong.
+ * It must be some sort of strong lier?
+ *    "The term 'strong liar' refers to the case where n is composite but
+ *     nevertheless the equations hold as they would for a prime."
+ *                                       - Miller-Rabin Primality test Wikipedia
+ */
+void get_keys(key_pair_t *pub, key_pair_t *priv) {
+  // testing for key gen strong liers
+  int fail = 0;
+  do {
+    BN_CTX *ctx = BN_CTX_new();
+    BIGNUM *rando = BN_new();
+    BIGNUM *temp = BN_new();
+    BIGNUM *dec = BN_new();
+
+    if(RSA_keys_generate(pub, priv)) fail = 1;
+
+    BN_pseudo_rand(rando, 256, -1, 0);
+
+    if(!BN_mod_exp(temp, rando, pub->power, pub->mod, ctx)) {
+      fail = 1;
+    }
+    if(!BN_mod_exp(dec, temp, priv->power, priv->mod, ctx)) {
+      fail = 1;
+    }
+
+    fail = BN_cmp(rando, dec) != 0;
+
+    BN_free(rando);
+    BN_free(temp);
+    BN_free(dec);
+    BN_CTX_free(ctx);
+  } while(fail);
 }

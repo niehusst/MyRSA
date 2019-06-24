@@ -5,8 +5,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <openssl/bn.h>
 
-#include "pad.h"
 #include "rsa.h"
 #include "crypto.h"
 
@@ -14,6 +14,17 @@
 
 //TODO fix to make do more than 1 communication round
 //TODO add encryption to messaging
+//TODO network code in demo.sh is failing because client is being launched b4 server sets up bcus of rsa stuff
+//TODO handshake code
+// Print a BIGNUM struct
+void bn_print(BIGNUM *bn) {
+  char* debug;
+  debug = BN_bn2dec(bn);
+  printf("%s\n", debug);
+
+  OPENSSL_free(debug);
+}
+
 
 /*
   A simple TCP/IP echo server
@@ -22,6 +33,11 @@
  */
 
 int main(int argc, char** argv) {
+  // get RSA encryption keys
+  key_pair_t *pub = malloc(sizeof(key_pair_t));
+  key_pair_t *priv = malloc(sizeof(key_pair_t));
+  get_keys(pub, priv);
+
   //get socket file descriptor
   int s = socket(AF_INET, SOCK_STREAM, 0);
   if(s == -1) {

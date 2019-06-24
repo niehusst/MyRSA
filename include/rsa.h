@@ -21,4 +21,13 @@ typedef struct key_pair {
  */
 int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key);
 
+/**
+ * Generate a public/private key pair that actually works.
+ * Caller is responsible for allocating and freeing key_pair_t memory.
+ *
+ * @param pub - the struct to store the resulting public key in
+ * @param priv - the struct to store the resulting private key in
+ */
+void get_keys(key_pair_t *pub, key_pair_t *priv);
+
 #endif
