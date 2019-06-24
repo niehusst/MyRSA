@@ -2,12 +2,23 @@
 An implementation of the RSA public key encryption algorithm. Just some
 fun solving the key exchange problem.
 
-### Dependencies and Getting started
+### D&D - Dependencies and Demoing
 This repository requires openSSL to be installed, and linked in such a
 way that the compiler can find it (see this articles on [medium](https://medium.com/@timmykko/using-openssl-library-with-macos-sierra-7807cfd47892)).
 I use the clang compiler in my Makefile, so make sure clang is installed as well.
 
-TODO: add instructions for use
+All the files can be compiled by running `make` in the `src/` directory. This
+will produce 2 executables; `client` and `server` that you can use to run simple
+TCP echo server. You can either run each program in their own terminal window,
+or you can run `server` as a background process; `./server &`.
+
+This can all be done in one command by running the `demo.sh` script also located
+in the `src/` directory.
+
+Then, via the `client` program, you can enter a message that will be encrypted
+and sent over the network to the server who will decrypt it, read it, re-encrypt
+it using its own RSA key and send it back to you (because it has nothing better
+to say) where `client` will decrypt the message and display it to the terminal.
 
 ## Authors
 * **Liam Niehus-Staab** - [niehusst](https://github.com/niehusst)
