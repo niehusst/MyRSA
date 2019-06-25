@@ -10,13 +10,14 @@ I use the clang compiler in my Makefile, so make sure clang is installed as well
 All the files can be compiled by running `make` in the `src/` directory. This
 will produce 2 executables; `client` and `server` that you can use to run simple
 TCP echo server. You can either run each program in their own terminal window,
-or you can run `server` as a background process; `./server &`.
+or you can run `server` as a background process; `./server &`. Notice it prints
+out a port number. Remember that now.
 
-This can all be done in one command by running the `demo.sh` script also located
-in the `src/` directory.
-
-Then, via the `client` program, you can enter a message that will be encrypted
-and sent over the network to the server who will decrypt it, read it, re-encrypt
+Then, run the `client` program, via `./client localhost <PORT_NUMBER>`. Unless
+you have another computer you want to run this program on, you will be connecting
+the `client` and `server` over local host with the port number printed by `server`.
+Finally you can use it! With `client`, you can enter a message that will be encrypted
+and sent over the network to `server`, who will decrypt it, read it, re-encrypt
 it using its own RSA key and send it back to you (because it has nothing better
 to say) where `client` will decrypt the message and display it to the terminal.
 
