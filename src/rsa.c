@@ -9,8 +9,6 @@
 
 #include "rsa.h"
 
-// RSA authors suggest 1024 for corporate use or 2048 for super secure stuff
-#define KEY_LEN 256
 #define ERR 1
 
 
@@ -216,9 +214,12 @@ int get_e(BIGNUM *e, const BIGNUM *t) {
  *
  * @param pub_key - the struct to store the resulting public key in
  * @param priv_key - the struct to store the resulting private key in
+ * @param num_bits - the number of bits the key length is (not really, but this
+ *                   approximates). RSA authors suggest 1024 for corporate use
+ *                   or 2048 for super secure stuff
  * @return status - boolean error status, 1 on failure, 0 on success
  */
-int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
+int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key, int num_bits) {
   int status = 0;
   srand(time(0));
   BN_CTX *ctx = BN_CTX_new(); // for internal BN usage
@@ -226,9 +227,6 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
   // allocate BIGNUM structs
   BIGNUM *p = BN_new();
   BIGNUM *q = BN_new();
-
-  // num bits in the primes to generate
-  int num_bits = KEY_LEN;
 
   // init as primes
   if(select_prime(p, num_bits) || select_prime(q, num_bits)) {
@@ -258,7 +256,7 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key) {
   // e and t must be relatively prime
   do {
     // get e
-    if(get_e(e, t)) {
+    if(get_e(e, t)) {//TODO: try generating prime instead of rand 
       //error
       fprintf(stderr, "Failed to get valid value for 'e'\n");
       status = ERR;
@@ -323,7 +321,7 @@ void get_keys(key_pair_t *pub, key_pair_t *priv) {
     BIGNUM *temp = BN_new();
     BIGNUM *dec = BN_new();
 
-    if(RSA_keys_generate(pub, priv)) fail = 1;
+    if(RSA_keys_generate(pub, priv, 256)) fail = 1;
 
     BN_pseudo_rand(rando, 256, -1, 0);
 

@@ -26,7 +26,8 @@ project. :)
 
 /**
  * Following the idea above, convert plaintext to an integer using an
- * invertable operation.
+ * invertable operation. User is responsible for allocating and freeing
+ * padded.
  *
  * @param padded - the BIGNUM to save the resulting padded text to
  * @param plaintext - c_string plain text to convert to an integer
@@ -36,7 +37,8 @@ int text_to_num(BIGNUM *padded, const char *plaintext);
 
 /**
  * Following the idea above, convert an integer to plaintext using an
- * invertable operation.
+ * invertable operation. User is responsible for allocating and freeing
+ * plaintext.
  *
  * @param padded - the BIGNUM to save the resulting padded text to
  * @param plaintext - c_string plain text to convert to an integer
