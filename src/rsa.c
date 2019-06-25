@@ -168,42 +168,21 @@ int mod_multi_inverse(BIGNUM *ret, const BIGNUM *e, const BIGNUM *t, BN_CTX *ctx
 }
 
 /**
- * Find value 'e' randomly between 2 -- t-1
+ * Find value 'e' between 2 -- t-1 that is
  *
  * @param e - the struct to write to
  * @param t - totient. used as upper limit on range +1
  * @return status - err status; 1 on error, 0 on success
  */
 int get_e(BIGNUM *e, const BIGNUM *t) {
-  BIGNUM *minimum = BN_new(); //2
-  BIGNUM *maximum = BN_new(); //t-1
-  int status = 0;
+  int status = !BN_set_word(e, 3);
+  /*
+  Def not best practices to just set e to 3 (since e is part of the private key),
+  but it's very fast, and actually solves my weird strong prime liar problem
+  for key sizes >= 256.
 
-  // set range limit values
-  if(!BN_set_word(minimum, 2)) {
-    fprintf(stderr, "Failed to set word, 2\n");
-    status = ERR;
-  }
-  if(!BN_sub(maximum, t, BN_value_one())) {
-    fprintf(stderr, "Failed to compute t-ERR\n");
-    status = ERR;
-  }
-
-  // compute the range
-  // only computes range 0-max
-  if(!BN_pseudo_rand_range(e, maximum)) {
-    fprintf(stderr, "Range computation failed\n");
-    status = ERR;
-  }
-  // do lower bound check manually
-  if(BN_cmp(e, minimum) == -1) {
-    fprintf(stderr, "e is less than min\n");
-    status = ERR; //failure to fall in valid range
-  }
-
-  // clean up
-  BN_free(maximum);
-  BN_free(minimum);
+  Normally, e is a large number between 2 and t-1 that is relatively prime to t.
+  */
 
   return status;
 }
@@ -256,7 +235,7 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key, int num_bits) {
   // e and t must be relatively prime
   do {
     // get e
-    if(get_e(e, t)) {//TODO: try generating prime instead of rand 
+    if(get_e(e, t)) {//TODO: try generating prime instead of rand
       //error
       fprintf(stderr, "Failed to get valid value for 'e'\n");
       status = ERR;
@@ -297,7 +276,8 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key, int num_bits) {
 }
 
 /**
- * Generate a public/private key pair that works.
+ * Generate a public/private key pair that works and save them into input
+ * parameters pub and priv. Uses a default key size of 256 (for speed).
  *
  * Awkward that I need this function...
  * RSA_keys_generate has about 50% chance of generating bad keys that
@@ -311,6 +291,9 @@ int RSA_keys_generate(key_pair_t *pub_key, key_pair_t *priv_key, int num_bits) {
  *    "The term 'strong liar' refers to the case where n is composite but
  *     nevertheless the equations hold as they would for a prime."
  *                                       - Miller-Rabin Primality test Wikipedia
+ *
+ * UPDATE: as of changing get_e to just set e = 3, the RSA_keys_generate algorithm
+ *         passes tests with 100% success for key sizes 256 and larger.
  */
 void get_keys(key_pair_t *pub, key_pair_t *priv) {
   // testing for key gen strong liers
