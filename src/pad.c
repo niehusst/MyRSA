@@ -8,7 +8,7 @@
  #include <openssl/bn.h>
 
  #include "pad.h"
- 
+
 
 /**
  * Following the idea in the header, convert plaintext to an integer using an
@@ -69,7 +69,8 @@ int num_to_text(char **plaintext, const BIGNUM *padded) {
   int status = 0;
   char* buf = BN_bn2dec(padded);
   int len = strlen(buf) / 3;
-  *plaintext = malloc(sizeof(char) * len);
+  *plaintext = malloc(sizeof(char) * (len + 1));
+  memset(*plaintext, '\0', len); // null terminate!
 
   if(*plaintext == NULL) {
     fprintf(stderr, "Failed to allocate space for plaintext\n");

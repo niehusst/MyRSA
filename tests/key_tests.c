@@ -55,8 +55,9 @@ void test_keys_work(int rounds, int bits) {
 // them to
 void test_keys_bits() {
   printf("%s\n", "Testing Key Functionality at different key sizes");
-  int bit_values[] = {64, 128, 256, 512, 1024};
-  for(int i = 0; i < 5; i++) {
+  int bit_values[] = {64, 128, 256, 512};//, 1024};//uncommenting this will make tests take 30min
+  int len = sizeof(bit_values) / sizeof(bit_values[0]);
+  for(int i = 0; i < len; i++) {
     printf("Test key length %d\n", bit_values[i]);
     test_keys_work(10, bit_values[i]);
   }
