@@ -57,8 +57,9 @@ void send_encrypted_message(int socket, char *plaintext, key_pair_t *their_pub_k
  * @param their_pub_key - the struct to save the key read over network into
  * @param my_pub_key - the key to send over the network to the client
  * @param client_socket - the socket_fd to send/read the keys to/from
+ * @return int - error status; 1 on failure, 0 on success
  */
-void crypto_handshake_with_client(key_pair_t *their_pub_key,
+int crypto_handshake_with_client(key_pair_t *their_pub_key,
                                   key_pair_t *my_pub_key,
                                   int client_socket);
 
@@ -74,8 +75,9 @@ void crypto_handshake_with_client(key_pair_t *their_pub_key,
  * @param their_pub_key - the struct to save the key read over network into
  * @param my_pub_key - the key to send over the network to the client
  * @param server_socket - the socket_fd to send/read the keys to/from
+ * @return int - error status; 1 on failure, 0 on success
  */
-void crypto_handshake_with_server(key_pair_t *their_pub_key,
+int crypto_handshake_with_server(key_pair_t *their_pub_key,
                                   key_pair_t *my_pub_key,
                                   int server_socket);
 

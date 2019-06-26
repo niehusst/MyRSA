@@ -79,7 +79,10 @@ int main(int argc, char** argv) {
 
   // exchange keys with client
   key_pair_t *their_pub_key = malloc(sizeof(key_pair_t));
-  crypto_handshake_with_client(their_pub_key, pub, client_socket);
+  if(crypto_handshake_with_client(their_pub_key, pub, client_socket)) {
+    fprintf(stderr, "%s\n", "Failed to do cryptographic handshake with client");
+    exit(2);
+  }
 
   // communicate infinitely with them (break on client program exit)
   while(1) {

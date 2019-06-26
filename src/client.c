@@ -65,7 +65,10 @@ int main(int argc, char** argv) {
 
   // do handshake
   key_pair_t *their_pub_key = malloc(sizeof(key_pair_t));
-  crypto_handshake_with_server(their_pub_key, pub, server_socket);
+  if(crypto_handshake_with_server(their_pub_key, pub, server_socket)) {
+    fprintf(stderr, "%s\n", "Failed to do cryptographic handshake with server");
+    exit(2);
+  }
 
   // infinitely communicate with server
   printf("You are now connected with the server!\nPress '^C' to exit program\n");

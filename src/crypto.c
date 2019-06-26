@@ -4,6 +4,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -27,20 +28,30 @@
 int encrypt_str(BIGNUM* cipher_text, const char* msg, const key_pair_t* pub_key) {
   int status = 0;
   BN_CTX *ctx = BN_CTX_new();
-
+  BIGNUM *temp = BN_new();
+  printf("%s\n", "encrypting messge"); //DEBUG
   // pad msg
-  if(text_to_num(cipher_text, msg)) {
+  if(text_to_num(temp, msg)) {
     fprintf(stderr, "%s\n", "Message padding failed");
     status = 1;
   }
-
+  printf("%s\n", "converted to num"); //DEBUG
+  if(pub_key == NULL) printf("%s\n", "pub key is null"); //DEBUG
+  if(temp == NULL) printf("%s\n", "cihper is null"); //DEBUG
+  if(pub_key->power == NULL) printf("%s\n", "power is nul"); //DEBUG
+  if(pub_key->mod == NULL) printf("%s\n", "mod is null"); //DEBUG
+  bn_print(temp);
+  bn_print(pub_key->power);
+  bn_print(pub_key->mod);
+  printf("%s\n", "null checks done"); //DEBUG
   // encrypt
-  if(!BN_mod_exp(cipher_text, cipher_text, pub_key->power, pub_key->mod, ctx)) {
+  if(!BN_mod_exp(cipher_text, temp, pub_key->power, pub_key->mod, ctx)) {
     fprintf(stderr, "%s\n", "Message encryption failed");
     status = 1;
   }
-
+  printf("%s\n", "encrypted"); //DEBUG
   BN_CTX_free(ctx);
+  BN_free(temp);
   return status;
 }
 
@@ -144,23 +155,79 @@ void send_encrypted_message(int socket, char *plaintext, key_pair_t *their_pub_k
  * @param their_pub_key - the struct to save the key read over network into
  * @param my_pub_key - the key to send over the network to the client
  * @param server_socket - the socket_fd to send/read the keys to/from
+ * @return int - error status; 1 on failure, 0 on success
  */
-void crypto_handshake_with_server(key_pair_t *their_pub_key,
+int crypto_handshake_with_server(key_pair_t *their_pub_key,
                                   key_pair_t *my_pub_key,
                                   int server_socket) {
   // send them our public key
-  write(server_socket, my_pub_key, sizeof(key_pair_t));
+  // convert power and mod fields to str, then send them strs, which can be
+  // converted back into BIGNUM fields
+  char *power, *mod;
+  power = BN_bn2dec(my_pub_key->power);
+  mod = BN_bn2dec(my_pub_key->mod);
+  int ps = strlen(power), ms = strlen(mod);
+  printf("pow size %d and mod size %d\n", ps, ms);
+  write(server_socket, &ps, sizeof(int));
+  write(server_socket, &ms, sizeof(int));
+  write(server_socket, power, sizeof(char)*strlen(power));
+  write(server_socket, mod, sizeof(char)*strlen(mod));
+  OPENSSL_free(power);
+  OPENSSL_free(mod);
 
-  // read in their public key (by chunks if necessary..)
+  // get size of power and mod strings
+  int pow_size = 0, mod_size = 0;
   int total_bytes_read = 0;
   do {
-    int bytes_read = read(server_socket,
-                          their_pub_key + total_bytes_read,
-                          sizeof(key_pair_t) - total_bytes_read);
+    int br = read(server_socket, &pow_size, sizeof(int)-total_bytes_read);
+    total_bytes_read += br;
+  } while(total_bytes_read < sizeof(int));
+  total_bytes_read = 0;
+  do {
+    int br = read(server_socket, &mod_size, sizeof(int)-total_bytes_read);
+    total_bytes_read += br;
+  } while(total_bytes_read < sizeof(int));
+  printf("pow size %d and mod size %d\n", pow_size, mod_size);
 
-    if(bytes_read < 0) break;
+  // read power string over network
+  char *pow_str = malloc(sizeof(char)*pow_size);
+  total_bytes_read = 0;
+  do {
+    int bytes_read = read(server_socket,
+                          pow_str + total_bytes_read,
+                          pow_size - total_bytes_read);
+    printf("read bytes: %d out of %d\n", bytes_read, (pow_size-total_bytes_read));//DEBUG
+    if(bytes_read < 0) {
+      fprintf(stderr, "%s\n", "Reading key from server failed");
+      return 1;
+    }
     total_bytes_read += bytes_read;
-  } while(total_bytes_read < sizeof(key_pair_t));
+  } while(total_bytes_read < pow_size);
+  // write to key parameter
+  their_pub_key->power = BN_new();
+  BN_dec2bn(&their_pub_key->power, pow_str);
+  free(pow_str);
+
+  // read in the mod string over the network
+  char *mod_str = malloc(sizeof(char)*mod_size);
+  total_bytes_read = 0;
+  do {
+    int bytes_read = read(server_socket,
+                          mod_str + total_bytes_read,
+                          mod_size - total_bytes_read);
+    printf("read bytes: %d out of %d\n", bytes_read, (mod_size-total_bytes_read));//DEBUG
+    if(bytes_read < 0) {
+      fprintf(stderr, "%s\n", "Reading key from server failed");
+      return 1;
+    }
+    total_bytes_read += bytes_read;
+  } while(total_bytes_read < mod_size);
+  // write to key parameter
+  their_pub_key->mod = BN_new();
+  BN_dec2bn(&their_pub_key->mod, mod_str);
+  free(mod_str);
+
+  return 0;
 }
 
 /**
@@ -172,21 +239,76 @@ void crypto_handshake_with_server(key_pair_t *their_pub_key,
  * @param their_pub_key - the struct to save the key read over network into
  * @param my_pub_key - the key to send over the network to the client
  * @param client_socket - the socket_fd to send/read the keys to/from
+ * @return int - error status; 1 on failure, 0 on success
  */
-void crypto_handshake_with_client(key_pair_t *their_pub_key,
+int crypto_handshake_with_client(key_pair_t *their_pub_key,
                                   key_pair_t *my_pub_key,
                                   int client_socket) {
-  // read in their public key (by chunks if necessary..)
+  // get size of power and mod strings
+  int pow_size = 0, mod_size = 0;
   int total_bytes_read = 0;
   do {
-    int bytes_read = read(client_socket,
-                          their_pub_key + total_bytes_read,
-                          sizeof(key_pair_t) - total_bytes_read);
+    int br = read(client_socket, &pow_size, sizeof(int)-total_bytes_read);
+    total_bytes_read += br;
+  } while(total_bytes_read < sizeof(int));
+  total_bytes_read = 0;
+  do {
+    int br = read(client_socket, &mod_size, sizeof(int)-total_bytes_read);
+    total_bytes_read += br;
+  } while(total_bytes_read < sizeof(int));
 
-    if(bytes_read < 0) break;
+  // read power string over network
+  char *pow_str = malloc(sizeof(char)*pow_size);
+  total_bytes_read = 0;
+  do {
+    int bytes_read = read(client_socket,
+                          pow_str + total_bytes_read,
+                          pow_size - total_bytes_read);
+    printf("read bytes: %d out of %d\n", bytes_read, (pow_size-total_bytes_read));//DEBUG
+    if(bytes_read < 0) {
+      fprintf(stderr, "%s\n", "Reading key from client failed");
+      return 1;
+    }
     total_bytes_read += bytes_read;
-  } while(total_bytes_read < sizeof(key_pair_t));
+  } while(total_bytes_read < pow_size);
+  // write to key parameter
+  their_pub_key->power = BN_new();
+  BN_dec2bn(&their_pub_key->power, pow_str);
+  free(pow_str);
+
+  // read in the mod string over the network
+  char *mod_str = malloc(sizeof(char)*mod_size);
+  total_bytes_read = 0;
+  do {
+    int bytes_read = read(client_socket,
+                          mod_str + total_bytes_read,
+                          mod_size - total_bytes_read);
+    printf("read bytes: %d out of %d\n", bytes_read, (mod_size-total_bytes_read));//DEBUG
+    if(bytes_read < 0) {
+      fprintf(stderr, "%s\n", "Reading key from client failed");
+      return 1;
+    }
+    total_bytes_read += bytes_read;
+  } while(total_bytes_read < mod_size);
+  // write to key parameter
+  their_pub_key->mod = BN_new();
+  BN_dec2bn(&their_pub_key->mod, mod_str);
+  free(mod_str);
 
   // send them our public key
-  write(client_socket, my_pub_key, sizeof(key_pair_t));
+  // convert power and mod fields to str, then send them strs, which can be
+  // converted back into BIGNUM fields
+  char *power, *mod;
+  power = BN_bn2dec(my_pub_key->power);
+  mod = BN_bn2dec(my_pub_key->mod);
+  int ps = strlen(power), ms = strlen(mod);
+  printf("pow size %d and mod size %d\n", ps, ms);
+  write(client_socket, &ps, sizeof(int));
+  write(client_socket, &ms, sizeof(int));
+  write(client_socket, power, sizeof(char)*strlen(power));
+  write(client_socket, mod, sizeof(char)*strlen(mod));
+  OPENSSL_free(power);
+  OPENSSL_free(mod);
+
+  return 0;
 }
