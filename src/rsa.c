@@ -168,21 +168,52 @@ int mod_multi_inverse(BIGNUM *ret, const BIGNUM *e, const BIGNUM *t, BN_CTX *ctx
 }
 
 /**
- * Find value 'e' between 2 -- t-1 that is
+ * Find value 'e' between 2 -- t-1 that is relatively prime to t
  *
  * @param e - the struct to write to
  * @param t - totient. used as upper limit on range +1
  * @return status - err status; 1 on error, 0 on success
  */
 int get_e(BIGNUM *e, const BIGNUM *t) {
-  int status = !BN_set_word(e, 3);
-  /*
-  Def not best practices to just set e to 3 (since e is part of the private key),
-  but it's very fast, and actually solves my weird strong prime liar problem
-  for key sizes >= 256.
+  /* returned to old e generation algorithm for cryptographic security */
+  BIGNUM *minimum = BN_new(); //2
+  BIGNUM *maximum = BN_new(); //t-1
+  int status = 0;
+  // set range limit values
+  if(!BN_set_word(minimum, 2)) {
+    fprintf(stderr, "Failed to set word, 2\n");
+    status = ERR;
+  }
+  if(!BN_sub(maximum, t, BN_value_one())) {
+    fprintf(stderr, "Failed to compute t-ERR\n");
+    status = ERR;
+  }
 
-  Normally, e is a large number between 2 and t-1 that is relatively prime to t.
+  // compute the range
+  // only computes range 0-max
+  if(!BN_pseudo_rand_range(e, maximum)) {
+    fprintf(stderr, "Range computation failed\n");
+    status = ERR;
+  }
+  // do lower bound check manually
+  if(BN_cmp(e, minimum) == -1) {
+    fprintf(stderr, "e is less than min\n");
+    status = ERR; //failure to fall in valid range
+  }
+
+  // clean up
+  BN_free(maximum);
+  BN_free(minimum);
+
+  /*
+  VERY cryptographically unsafe to just set e to 3 (since e is part of the
+  private key, it being a constant would allow for the private key to be easily
+  reconstructed from the public key). However, it's very fast, and actually solves
+  my weird strong prime liar problem.
+  Uncomment following line for speed and functionality, but completely
+  unsecure encryption keys.
   */
+  //int status = !BN_set_word(e, 3);
 
   return status;
 }
