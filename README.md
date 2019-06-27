@@ -11,11 +11,13 @@ All the files can be compiled by running `make` in the `src/` directory. This
 will produce 2 executables; `client` and `server` that you can use to run simple
 TCP echo server. You can either run each program in their own terminal window,
 or you can run `server` as a background process; `./server &`. Notice it prints
-out a port number. Remember that now.
+out a port number. Remember that now. (Note that if you choose to run `server`
+as a background process, it won't terminate on its own; you can kill the process
+with `kill <server pid>`.)
 
 Then, run the `client` program, via `./client localhost <PORT_NUMBER>`. Unless
 you have another computer you want to run this program on, you will be connecting
-the `client` and `server` over local host with the port number printed by `server`.
+the `client` and `server` over the host localhost with the port number printed by `server`.
 Finally you can use it! With `client`, you can enter a message that will be encrypted
 and sent over the network to `server`, who will decrypt it, read it, re-encrypt
 it using its own RSA key and send it back to you (because it has nothing better
