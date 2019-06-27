@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
 
     //read data sent from server
     char *return_msg;
-    if(get_encrypted_message(server_socket, &return_msg, priv)) {
+    if(get_encrypted_message(server_socket, &return_msg, priv, 0)) {
       printf("%s\n", "Getting message from server failed");
     }
 

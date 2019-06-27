@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
   // communicate infinitely with them (break on client program exit)
   while(1) {
     char *msg;
-    if(get_encrypted_message(client_socket, &msg, priv)) {
+    if(get_encrypted_message(client_socket, &msg, priv, 1)) {
       printf("%s\n", "Getting message from client failed");
     }
 

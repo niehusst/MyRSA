@@ -176,11 +176,13 @@ int bn_write(int socket, const BIGNUM *bn) {
  *                    the message
  * @return status - error status; 1 on failure, 0 on success
  */
-int get_encrypted_message(int socket, char **plaintext, key_pair_t *priv_key) {
+int get_encrypted_message(int socket, char **plaintext, key_pair_t *priv_key, int print) {
   int status = 0;
   // read message sent from client (it's an encrypted BIGNUM struct)
   BIGNUM *message = BN_new();
   if(bn_read(socket, message)) status = 1;
+
+  if(print) printf("Server received encrypted message: "), bn_print(message);
 
   // decrypt to string
   if(decrypt_str(plaintext, message, priv_key)) status = 1;
