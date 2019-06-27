@@ -86,10 +86,14 @@ int main(int argc, char** argv) {
 
   // communicate infinitely with them (break on client program exit)
   while(1) {
-    char *msg = NULL; //DEBUG this prob causes problesm
-    get_encrypted_message(client_socket, &msg, priv);
+    char *msg;
+    if(get_encrypted_message(client_socket, &msg, priv)) {
+      printf("%s\n", "Getting message from client failed");
+    }
 
-    send_encrypted_message(client_socket, msg, their_pub_key);
+    if(send_encrypted_message(client_socket, msg, their_pub_key)) {
+      printf("%s\n", "Sending message to client failed");
+    }
   }
 
   //clean up server

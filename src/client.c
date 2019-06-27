@@ -79,17 +79,16 @@ int main(int argc, char** argv) {
     printf("Enter a message to send to the server:\n");
     fgets(msg, size, stdin);
 
-    //DEBUG
-    printf("%s\n", "about to send message");
-
     //send message to server
-    send_encrypted_message(server_socket, msg, their_pub_key);
-
-    printf("%s\n", "about to get message"); //DEBUG
+    if(send_encrypted_message(server_socket, msg, their_pub_key)) {
+      printf("%s\n", "Sending message to server failed");
+    }
 
     //read data sent from server
     char *return_msg;
-    get_encrypted_message(server_socket, &return_msg, priv);
+    if(get_encrypted_message(server_socket, &return_msg, priv)) {
+      printf("%s\n", "Getting message from server failed");
+    }
 
     printf("Server sent message: %s\n", return_msg);
   }

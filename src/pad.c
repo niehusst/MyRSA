@@ -21,15 +21,16 @@
  */
 int text_to_num(BIGNUM *padded, const char *plaintext) {
   int status = 0;
-  char* buf = malloc(sizeof(char) * ((strlen(plaintext)+1)*3)+1);
-
+  size_t len = ((strlen(plaintext)+1)*3)+1;
+  char* buf = malloc(sizeof(char) * len);
   if(buf == NULL) {
     fprintf(stderr, "Failed to allocate space for padded text\n");
     status = 1;
   }
+  memset(buf, '\0', len); // null terminate
 
   // convert plaintext to decimal string
-  memset(buf, '0', ((strlen(plaintext)+1)*3));
+  memset(buf, '0', len-1);
   buf[0] = '1'; // add front pad
   for(int ch = 0; ch < strlen(plaintext); ch++) {
     int buf_pos = (ch+1) * 3;
@@ -70,7 +71,7 @@ int num_to_text(char **plaintext, const BIGNUM *padded) {
   char* buf = BN_bn2dec(padded);
   int len = strlen(buf) / 3;
   *plaintext = malloc(sizeof(char) * (len + 1));
-  memset(*plaintext, '\0', len); // null terminate!
+  memset(*plaintext, '\0', len+1); // null terminate!
 
   if(*plaintext == NULL) {
     fprintf(stderr, "Failed to allocate space for plaintext\n");
@@ -88,6 +89,6 @@ int num_to_text(char **plaintext, const BIGNUM *padded) {
     free(temp);
   }
 
-  free(buf);
+  OPENSSL_free(buf);
   return status;
 }
