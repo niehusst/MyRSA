@@ -3,14 +3,19 @@ An implementation of the RSA public key encryption algorithm. Just some
 fun solving the key exchange problem.
 
 ### How it all works
+
 RSA encryption is used for sending encrypted messages to a target destination without having to somehow send over a key to decrypt the messages as well. Everyone who participates in secure communication using RSA needs two encryption keys: a public key and a private key. 
+
 A breif description of what the keys are and how they work:
 The public key is made up of a a few numbers. The first is a number `n` that is the product of two VERY large prime numbers `p` and `q` (i.e. 256 bits or greater depending on how much security you want), and the second is a number `e` that is co-prime to the Euler totient of `p` and `q`. Together, `n` and `e` make up the public key. The private key is comprised of another two numbers; `n` again and the multiplicative inverse `i` of the previously calculated totient. These specific numbers are chosen because of the useful property that a number can be "encrypted" by taking its modular exponent with `n` and `e` ```(number ^ e) mod n```
 and then that same number can be recovered, or "decrypted", by taking another modular exponent with `n` and `i`!
 ```(encrypted_number ^ i) mod n```
 And primes are used because they allow this property and they are large to decrease the chances of a hacker cracking the private key. (For more information on this process and the math, checkout [wikipedia](https://en.wikipedia.org/wiki/RSA_(cryptosystem)): the source of all knowledge.)
+
 Now, all you need to do in order to send a message encrypted such that only the intended recipient can read it is exchange public keys with them! You encrypt your messages to them using their public key, which they can then decipher using their own private key. Since you don't want anyone else to be able to read messages intended for only you, the private key should never be shared.
+
 This is great! We can now send and receive messages very securely ... if they are numbers. The process of converting text to numbers is called padding. The most important part of a padding algorithm is that any input text can be uniquely converted to a number and back to the same text with no collisions (a bijective function for you fancy people out there). There are many ways of doing this, but I use a very simple one since this isn't a production environment; I simply convert each character to its ascii value and concatenate that number (in a chunk of 3 digits) onto the back of the resulting number. To unpad, you simply parse each block of 3 digits to ascii again.
+
 The final part of this project is just a TCP/IP echo server using the C sockets API so there is anyone to send messages to without having to go through the trouble of somehow integrating this code into another communication system just to test it out.
 
 ### D&D - Dependencies and Demoing
